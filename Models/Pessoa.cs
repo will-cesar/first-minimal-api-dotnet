@@ -2,12 +2,17 @@ namespace PrimeiraApi.Models;
 
 public class Pessoa
 {
-    public Guid Id { get; set; }
-    public string Nome { get; set; }
+    public Guid Id { get; init; }
+    public string Nome { get; private set; }
 
-    public Pessoa(Guid id, string nome)
+    public Pessoa(string nome)
     {
-        Id = id;
+        Id = Guid.NewGuid();
+        Nome = nome;
+    }
+
+    public void AtualizarNome(string nome)
+    {
         Nome = nome;
     }
 }

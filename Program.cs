@@ -1,3 +1,4 @@
+using PrimeiraApi.Data;
 using PrimeiraApi.Rotas;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +8,7 @@ builder.Services.AddCors(option => option
     .AddDefaultPolicy(policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<AppDbContext>();
 
 
 var app = builder.Build();

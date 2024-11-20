@@ -1,38 +1,76 @@
+using Microsoft.EntityFrameworkCore;
+using PrimeiraApi.Data;
+using PrimeiraApi.DTOs;
 using PrimeiraApi.Models;
 
 namespace PrimeiraApi.Rotas;
 
 public static class PessoaRotas
 {
-    public static List<Pessoa> Pessoas = new List<Pessoa>()
-    {
-        new Pessoa(Guid.NewGuid(), "Neymar"),
-        new Pessoa(Guid.NewGuid(), "Cristiano"),
-        new Pessoa(Guid.NewGuid(), "Messi"),
-    };
     public static void MapPessoaRotas(this WebApplication app)
     {
-        app.MapGet("pessoas", () => Pessoas);
+        var rotasPessoas = app.MapGroup("pessoas");
         
-        app.MapGet("pessoas/{nome}", 
-            (string nome) => Pessoas.Find(x => x.Nome.StartsWith(nome)));
+        rotasPessoas.MapGet("", async (AppDbContext context, CancellationToken ct) =>
+        {
+            var pessoas = await context
+                .Pessoas
+                .Select(pessoa => new PessoaDto(pessoa.Id, pessoa.Nome))
+                .ToListAsync(ct);
+            return pessoas;
+        });
 
-        app.MapPost("pessoas", (Pessoa pessoa) =>
+        rotasPessoas.MapGet("{id:guid}", async (Guid id, AppDbContext context, CancellationToken ct) =>
         {
-            pessoa.Id = Guid.NewGuid();
-            Pessoas.Add(pessoa);
-            return Results.Ok(pessoa);
+            var pessoa = await context.Pessoas
+                .SingleOrDefaultAsync(pessoa => pessoa.Id == id, ct);
+            return pessoa;
+        });
+
+        rotasPessoas.MapPost("", async (AddPessoaRequest request, AppDbContext context, CancellationToken ct) =>
+        {
+            var jaExiste = await context.Pessoas
+                .AnyAsync(pessoa => pessoa.Nome.StartsWith(request.Nome), ct);
+
+            if (jaExiste) return Results.Conflict("Pessoa já existe!");
+            
+            var novaPessoa = new Pessoa(request.Nome);
+            await context.Pessoas.AddAsync(novaPessoa, ct);
+            await context.SaveChangesAsync(ct);
+
+            var pessoaRetorno = new PessoaDto(novaPessoa.Id, novaPessoa.Nome);
+            
+            return Results.Ok(pessoaRetorno);
         });
         
-        app.MapPut("pessoas/{id:guid}", (Guid id, Pessoa pessoa) =>
-        {
-            var encontrado = Pessoas.Find(x => x.Id == id);
-            
-            if (encontrado == null) return Results.NotFound();
-            
-            encontrado.Nome = pessoa.Nome;
-            
-            return Results.Ok(encontrado);
+        rotasPessoas.MapPut("{id:guid}", 
+            async (Guid id, UpdatePessoaRequest request, AppDbContext context, CancellationToken ct) =>
+            {
+                var pessoa = await context.Pessoas
+                    .SingleOrDefaultAsync(pessoa => pessoa.Id == id, ct);
+                
+                if (pessoa == null) 
+                    return Results.NotFound();
+                
+                pessoa.AtualizarNome(request.Nome);
+                
+                await context.SaveChangesAsync(ct);
+                return Results.Ok(new PessoaDto(pessoa.Id, pessoa.Nome));
         });
+
+        rotasPessoas.MapDelete("{id:guid}",
+            async (Guid id, AppDbContext context, CancellationToken ct) =>
+            {
+                var pessoa = await context.Pessoas
+                    .SingleOrDefaultAsync(pessoa => pessoa.Id == id, ct);
+                
+                if (pessoa == null)
+                    return Results.NotFound();
+                
+                context.Pessoas.Remove(pessoa);
+                await context.SaveChangesAsync(ct);
+                
+                return Results.NoContent();
+            });
     }
 }
