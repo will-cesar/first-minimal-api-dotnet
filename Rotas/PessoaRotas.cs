@@ -15,12 +15,13 @@ public static class PessoaRotas
         app.MapGet("pessoas", () => Pessoas);
         
         app.MapGet("pessoas/{nome}", 
-            (string nome) => Pessoas.Find(x => x.Nome == nome));
+            (string nome) => Pessoas.Find(x => x.Nome.StartsWith(nome)));
 
         app.MapPost("pessoas", (Pessoa pessoa) =>
         {
+            pessoa.Id = Guid.NewGuid();
             Pessoas.Add(pessoa);
-            return pessoa;
+            return Results.Ok(pessoa);
         });
         
         app.MapPut("pessoas/{id:guid}", (Guid id, Pessoa pessoa) =>
